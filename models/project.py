@@ -1,8 +1,7 @@
-# File project.py
+# models/project.py
 import re
 from datetime import datetime
 from models.ProjectItem import ProjectItem
-from managers.staff_manager import StaffManager
 
 
 class Project(ProjectItem):
@@ -15,25 +14,18 @@ class Project(ProjectItem):
     ]
 
     def __init__(self):
-        super().__init__()  # id, name, description, start_date
-
-        # ===== PROJECT-SPECIFIC =====
-        self.project_id = ""          
-        self.project_name = ""        
+        super().__init__()
+        self.project_id = ""
+        self.project_name = ""
         self.customer = ""
         self.expected_end_date = None
         self.actual_end_date = None
         self.budget = 0.0
         self.status_project = ""
+        self.member_list = []  # KHÔNG LƯU CSV
+        self.task_list = []    # KHÔNG LƯU CSV
+        self.pm_id = ""        # Mã Project Manager
 
-        # ===== Thêm PM ID =====
-        self.pm_id = None  # ID của Project Manager thuộc dự án này
-
-        # dữ liệu dẫn xuất – KHÔNG LƯU CSV
-        self.member_list = []
-        self.task_list = []
-
-    # ================= CSV =================
     @staticmethod
     def csv_fields():
         return [
@@ -46,7 +38,7 @@ class Project(ProjectItem):
             "actual_end_date",
             "budget",
             "status_project",
-            "pm_id",  # thêm
+            "pm_id",  # thêm trường PM
         ]
 
     def to_dict(self):
@@ -60,7 +52,7 @@ class Project(ProjectItem):
             "actual_end_date": self.actual_end_date.strftime("%Y-%m-%d") if self.actual_end_date else "",
             "budget": self.budget,
             "status_project": self.status_project,
-            "pm_id": self.pm_id,  # thêm
+            "pm_id": self.pm_id,
         }
 
     @classmethod
@@ -77,7 +69,7 @@ class Project(ProjectItem):
         p.actual_end_date = datetime.strptime(data["actual_end_date"], "%Y-%m-%d") if data.get("actual_end_date") else None
         p.budget = float(data.get("budget", 0))
         p.status_project = data.get("status_project", "")
-        p.pm_id = data.get("pm_id", None)  # thêm
+        p.pm_id = data.get("pm_id", "")
         return p
 
     # ================= INPUT =================
@@ -85,7 +77,7 @@ class Project(ProjectItem):
         if existing_project_ids is None:
             existing_project_ids = []
 
-        # ===== PROJECT ID =====
+        # PROJECT ID
         while True:
             pid = input("Nhập mã dự án (PYY_NNNNN): ").strip()
             if not re.fullmatch(r"P\d{2}_\d{5}", pid):
@@ -98,7 +90,7 @@ class Project(ProjectItem):
             self.id = pid
             break
 
-        # ===== NAME =====
+        # NAME
         while True:
             name = input("Nhập tên dự án: ").strip()
             if len(name) < 2:
@@ -108,7 +100,7 @@ class Project(ProjectItem):
             self.name = self.project_name
             break
 
-        # ===== CUSTOMER =====
+        # CUSTOMER
         while True:
             customer = input("Nhập khách hàng: ").strip()
             if not customer:
@@ -117,13 +109,13 @@ class Project(ProjectItem):
             self.customer = customer.title()
             break
 
-        # ===== DESCRIPTION =====
+        # DESCRIPTION
         self.description = input("Nhập mô tả dự án: ").strip()
 
-        # ===== START DATE =====
+        # START DATE
         self.input_start_date()
 
-        # ===== EXPECTED END DATE =====
+        # EXPECTED END DATE
         while True:
             try:
                 d = datetime.strptime(input("Ngày hoàn thành dự kiến (dd/mm/yyyy): "), "%d/%m/%Y")
@@ -135,7 +127,7 @@ class Project(ProjectItem):
             except ValueError:
                 print("Sai định dạng ngày")
 
-        # ===== ACTUAL END DATE =====
+        # ACTUAL END DATE
         while True:
             s = input("Ngày hoàn thành thực tế (Enter nếu chưa xong): ").strip()
             if not s:
@@ -151,7 +143,7 @@ class Project(ProjectItem):
             except ValueError:
                 print("Sai định dạng ngày")
 
-        # ===== BUDGET =====
+        # BUDGET
         while True:
             try:
                 self.budget = float(input("Ngân sách dự kiến: "))
@@ -162,46 +154,56 @@ class Project(ProjectItem):
             except ValueError:
                 print("Phải là số")
 
-        # ===== STATUS =====
+        # STATUS
         while True:
             print("Chọn trạng thái:")
             for i, st in enumerate(self.STATUS_LIST, 1):
                 print(f"{i}. {st}")
+
             try:
-                self.status_project = self.STATUS_LIST[int(input("Chọn: ")) - 1]
+                choice = int(input("Chọn: "))
+                if choice < 1 or choice > len(self.STATUS_LIST):
+                    raise ValueError
+
+                status = self.STATUS_LIST[choice - 1]
+                today = datetime.now()
+
+                if status == "Hoàn thành":
+                    # Chưa tới hạn dự kiến
+                    if self.expected_end_date and today < self.expected_end_date:
+                        print("Dự án chưa tới ngày hoàn thành dự kiến → không thể chọn 'Hoàn thành'")
+                        continue
+
+                    # Có ngày thực tế nhưng sai logic
+                    if self.actual_end_date and self.actual_end_date > today:
+                        print("Ngày hoàn thành thực tế không hợp lệ")
+                        continue
+
+                self.status_project = status
                 break
-            except:
+
+            except ValueError:
                 print("Lựa chọn không hợp lệ")
 
-        # ===== PROJECT MANAGER =====
-        while True:
-            pm_id = input("Nhập mã PM của dự án: ").strip()
-            if not pm_id:
-                print("PM không được để trống")
-                continue
 
-            if not staff_manager:
-                print("StaffManager chưa được truyền vào")
-                continue
+        # PM (bắt buộc)
+        if staff_manager:
+            while True:
+                pm_id = input("Nhập mã PM của dự án: ").strip()
+                if not pm_id:
+                    print("Phải nhập PM hoặc gõ 'exit' để hủy")
+                    continue
+                if pm_id.lower() == "exit":
+                    print("Hủy nhập dự án.")
+                    return False
+                staff = staff_manager.find_by_id(pm_id)
+                if not staff:
+                    print("Nhân viên không tồn tại.")
+                    continue
+                if getattr(staff, "management_title", "") != "Project Manager":
+                    print("Người nhập phải là Project Manager")
+                    continue
+                self.pm_id = pm_id
+                break
 
-            staff = staff_manager.find_by_id(pm_id)
-            if not staff:
-                print("Nhân viên không tồn tại")
-                continue
-            if staff.management_title != "Project Manager":
-                print("Nhân viên này không phải Project Manager")
-                continue
-
-            self.pm_id = pm_id
-            break
-
-
-    # ================= DISPLAY =================
-    def display_info(self):
-        actual = self.actual_end_date.strftime("%d/%m/%Y") if self.actual_end_date else "Chưa hoàn thành"
-        print(
-            f"{self.project_id:<10} | {self.project_name:<25} | {self.customer:<20} | "
-            f"{self.start_date.strftime('%d/%m/%Y'):<12} | "
-            f"{self.expected_end_date.strftime('%d/%m/%Y'):<12} | "
-            f"{actual:<12} | {self.budget:<12,.0f} | {self.status_project:<15} | PM: {self.pm_id}"
-        )
+        return True

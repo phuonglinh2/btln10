@@ -100,7 +100,7 @@ def progress_menu(project_manager, task_manager):
     print("\n--- KIỂM TRA TIẾN ĐỘ DỰ ÁN ---")
     progress = Progress(
         project_list=project_manager.items, 
-        all_tasks=task_manager.task_list
+        all_tasks=task_manager.items
     )
     progress.display_summary_with_tasks()
 

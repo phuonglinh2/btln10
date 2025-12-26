@@ -6,16 +6,22 @@ from managers.ProjectItem_manager import ProjectItemManager
 
 
 class TaskManager(ProjectItemManager):
-    def __init__(self, filename="tasks.csv", project_manager=None, staff_manager=None):
+    def __init__(self, filename, staff_manager):
         super().__init__(
             filename=filename,
             cls=Task,
             fieldnames=Task.csv_fields(),
-            id_field="id"
+            id_field="task_id"
         )
-        self.project_manager = project_manager
         self.staff_manager = staff_manager
-        self.task_list = self.items 
+        self.task_list = self.items
+
+    # ================= SAVE =================
+    def save_to_file(self):
+        """
+        Alias để đồng bộ tên hàm với ProjectManager
+        """
+        super().save_to_file()
 
     # ================= FIND =================
     def find_by_id(self, task_id):
@@ -64,6 +70,11 @@ class TaskManager(ProjectItemManager):
         if task.start_date < project.start_date:
             print("Ngày bắt đầu task < ngày bắt đầu dự án. Tự chỉnh.")
             task.start_date = project.start_date
+
+        if task.start_date > project.expected_end_date:
+            print("Ngày bắt đầu task > ngày kết thúc dự án. Tự chỉnh.")
+            task.start_date = project.expected_end_date
+
 
         if task.deadline > project.expected_end_date:
             print("Deadline task > ngày kết thúc dự kiến dự án. Tự chỉnh.")
@@ -166,3 +177,34 @@ class TaskManager(ProjectItemManager):
         if updated:
             self.save_to_file()
             print(f"Đã gỡ task khỏi nhân viên {staff_id}")
+    
+    def search_task(self):
+        print("\n--- TÌM KIẾM TASK ---")
+        keyword = input("Nhập mã task hoặc tên task: ").strip().lower()
+
+        if not keyword:
+            print("Không được để trống.")
+            return
+
+        results = [
+            t for t in self.items
+            if keyword in t.id.lower()
+            or keyword in t.name.lower()
+        ]
+
+        if not results:
+            print("Không tìm thấy task.")
+            return
+
+        print(
+            f"{'Dự án':<12} | {'ID':<18} | {'Tên':<20} | "
+            f"{'Assignee':<12} | {'Deadline':<12} | {'Status':<12}"
+        )
+
+        for t in results:
+            print(
+                f"{t.project_id:<12} | {t.id:<18} | {t.name:<20} | "
+                f"{t.assignee_id or 'Unassigned':<12} | "
+                f"{t.deadline.strftime('%d/%m/%Y') if t.deadline else '--':<12} | "
+                f"{t.status_task:<12}"
+            )

@@ -89,7 +89,7 @@ class FinalReportManager:
     # ======================================================
     # VIEW DETAIL
     # ======================================================
-    def view_report_detail(self):
+    def view_report_detail(self, project_manager, staff_manager, task_manager):
         print("\n--- XEM BÁO CÁO TỔNG KẾT ---")
         rid = input("Nhập mã báo cáo: ").strip()
 
