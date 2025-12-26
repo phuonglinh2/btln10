@@ -52,16 +52,11 @@ class FinalReport(BaseReport):
     # LOAD DATA + VALIDATION
     # ======================================================
     def input_info(self, project_manager, task_manager, staff_manager):
-        """
-        Nạp dữ liệu dự án + task + validate nghiệp vụ
-        """
 
-        # ===== 1. LẤY DỰ ÁN =====
         project = project_manager.find_by_id(self.project_id)
         if not project:
             raise ValueError(f"Không tìm thấy dự án {self.project_id}")
 
-        # ===== 2. CHECK PM CỦA DỰ ÁN =====
         pm_id = getattr(project, "pm_id", None)
         if not pm_id:
             raise ValueError("Dự án chưa được gán Project Manager")
@@ -75,17 +70,14 @@ class FinalReport(BaseReport):
         if not author or getattr(author, "management_title", "") != "Project Manager":
             raise PermissionError("Người lập báo cáo không phải Project Manager")
 
-        # ===== 3. NẠP THÔNG TIN DỰ ÁN =====
         self.project_name = project.project_name
         self.customer = project.customer
         self.project_start_date = self._parse_date(project.start_date)
         self.actual_end_date = self._parse_date(project.actual_end_date)
         self.project_status = project.status_project
 
-        # ===== 4. VALIDATE NGÀY LẬP =====
         self._validate_report_date()
 
-        # ===== 5. TÍNH TASK =====
         tasks = [t for t in task_manager.task_list if t.project_id == self.project_id]
 
         self.total_tasks = len(tasks)
@@ -132,6 +124,73 @@ class FinalReport(BaseReport):
                 except ValueError:
                     pass
         return None
+
+    # ======================================================
+    # LOAD FROM CSV
+    # ======================================================
+    @classmethod
+    def from_dict(cls, data):
+        def safe_int(value, default=0):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return default
+
+        def safe_float(value, default=0.0):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        created_raw = data.get("created_date")
+        try:
+            created_date = datetime.strptime(
+                created_raw, "%Y-%m-%d %H:%M:%S"
+            ) if created_raw else datetime.now()
+        except ValueError:
+            created_date = datetime.now()
+
+        return cls(
+            project_id=data.get("project_id", ""),
+            report_id=data.get("report_id", ""),
+            author_id=data.get("author_id", ""),
+            report_date=created_date,
+            stats={
+                "project_name": data.get("project_name", ""),
+                "customer": data.get("customer", ""),
+                "project_start_date": data.get("project_start_date"),
+                "actual_end_date": data.get("actual_end_date"),
+                "duration_days": safe_int(data.get("duration_days")),
+                "total_tasks": safe_int(data.get("total_tasks")),
+                "completed_tasks": safe_int(data.get("completed_tasks")),
+                "ontime_tasks": safe_int(data.get("ontime_tasks")),
+                "overdue_tasks": safe_int(data.get("overdue_tasks")),
+                "cancelled_tasks": safe_int(data.get("cancelled_tasks")),
+                "overall_progress": safe_float(data.get("overall_progress")),
+                "project_status": data.get("project_status", ""),
+            },
+            is_loading=True
+        )
+
+    # ======================================================
+    # HIỂN THỊ 
+    # ======================================================
+    def display_info(self):
+        print("\n--- CHI TIẾT BÁO CÁO TỔNG KẾT ---")
+        print(f"Mã báo cáo      : {self.report_id}")
+        print(f"Mã dự án        : {self.project_id}")
+        print(f"Tên dự án       : {self.project_name}")
+        print(f"Khách hàng      : {self.customer}")
+        print(f"Người lập       : {self.author_id}")
+        print(f"Ngày lập        : {self.created_date.strftime('%d/%m/%Y')}")
+
+        print(f"Tổng task       : {self.total_tasks}")
+        print(f"Hoàn thành      : {self.completed_tasks}")
+        print(f"Đúng hạn        : {self.ontime_tasks}")
+        print(f"Quá hạn         : {self.overdue_tasks}")
+        print(f"Hủy             : {self.cancelled_tasks}")
+        print(f"Tiến độ (%)     : {self.overall_progress}")
+        print(f"Trạng thái DA   : {self.project_status}")
 
     # ======================================================
     # CSV
