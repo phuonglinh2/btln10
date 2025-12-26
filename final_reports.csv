@@ -1,0 +1,2 @@
+project_id,report_id,author_id,report_date,total_tasks,completed_tasks,ontime_tasks,overdue_tasks,cancelled_tasks,overall_progress,project_status,duration_days,project_name,customer
+P25_00002,FRP25_00002,NV_00002,26/12/2025,Quản Lý Sinh Viên,Nguyễn Văn Hiếu,12/02/2025,26/12/2025,317,2,1,0,1,1,50.0,Hoàn thành,
