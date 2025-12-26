@@ -38,7 +38,7 @@ class Project(ProjectItem):
             "actual_end_date",
             "budget",
             "status_project",
-            "pm_id",  # thêm trường PM
+            "pm_id",
         ]
 
     def to_dict(self):
@@ -77,7 +77,6 @@ class Project(ProjectItem):
         if existing_project_ids is None:
             existing_project_ids = []
 
-        # PROJECT ID
         while True:
             pid = input("Nhập mã dự án (PYY_NNNNN): ").strip()
             if not re.fullmatch(r"P\d{2}_\d{5}", pid):
@@ -90,7 +89,6 @@ class Project(ProjectItem):
             self.id = pid
             break
 
-        # NAME
         while True:
             name = input("Nhập tên dự án: ").strip()
             if len(name) < 2:
@@ -100,7 +98,6 @@ class Project(ProjectItem):
             self.name = self.project_name
             break
 
-        # CUSTOMER
         while True:
             customer = input("Nhập khách hàng: ").strip()
             if not customer:
@@ -109,13 +106,10 @@ class Project(ProjectItem):
             self.customer = customer.title()
             break
 
-        # DESCRIPTION
         self.description = input("Nhập mô tả dự án: ").strip()
 
-        # START DATE
         self.input_start_date()
 
-        # EXPECTED END DATE
         while True:
             try:
                 d = datetime.strptime(input("Ngày hoàn thành dự kiến (dd/mm/yyyy): "), "%d/%m/%Y")
@@ -127,7 +121,6 @@ class Project(ProjectItem):
             except ValueError:
                 print("Sai định dạng ngày")
 
-        # ACTUAL END DATE
         while True:
             s = input("Ngày hoàn thành thực tế (Enter nếu chưa xong): ").strip()
             if not s:
@@ -143,7 +136,6 @@ class Project(ProjectItem):
             except ValueError:
                 print("Sai định dạng ngày")
 
-        # BUDGET
         while True:
             try:
                 self.budget = float(input("Ngân sách dự kiến: "))
@@ -154,51 +146,26 @@ class Project(ProjectItem):
             except ValueError:
                 print("Phải là số")
 
-        # STATUS
         while True:
             print("Chọn trạng thái:")
             for i, st in enumerate(self.STATUS_LIST, 1):
                 print(f"{i}. {st}")
-
             try:
                 choice = int(input("Chọn: "))
-                if choice < 1 or choice > len(self.STATUS_LIST):
-                    raise ValueError
-
-                status = self.STATUS_LIST[choice - 1]
-                today = datetime.now()
-
-                if status == "Hoàn thành":
-                    # Chưa tới hạn dự kiến
-                    if self.expected_end_date and today < self.expected_end_date:
-                        print("Dự án chưa tới ngày hoàn thành dự kiến → không thể chọn 'Hoàn thành'")
-                        continue
-
-                    # Có ngày thực tế nhưng sai logic
-                    if self.actual_end_date and self.actual_end_date > today:
-                        print("Ngày hoàn thành thực tế không hợp lệ")
-                        continue
-
-                self.status_project = status
-                break
-
+                if 1 <= choice <= len(self.STATUS_LIST):
+                    self.status_project = self.STATUS_LIST[choice - 1]
+                    break
             except ValueError:
                 print("Lựa chọn không hợp lệ")
 
-
-        # PM (bắt buộc)
         if staff_manager:
             while True:
                 pm_id = input("Nhập mã PM của dự án: ").strip()
-                if not pm_id:
-                    print("Phải nhập PM hoặc gõ 'exit' để hủy")
-                    continue
                 if pm_id.lower() == "exit":
-                    print("Hủy nhập dự án.")
                     return False
                 staff = staff_manager.find_by_id(pm_id)
                 if not staff:
-                    print("Nhân viên không tồn tại.")
+                    print("Nhân viên không tồn tại")
                     continue
                 if getattr(staff, "management_title", "") != "Project Manager":
                     print("Người nhập phải là Project Manager")
@@ -207,3 +174,61 @@ class Project(ProjectItem):
                 break
 
         return True
+
+    # ================= UPDATE (THÊM MỚI – SỬA LỖI) =================
+    def update_info(self):
+        print("\n--- CẬP NHẬT DỰ ÁN ---")
+
+        s = input(f"Tên dự án [{self.project_name}]: ").strip()
+        if s:
+            self.project_name = s.title()
+            self.name = self.project_name
+
+        s = input(f"Khách hàng [{self.customer}]: ").strip()
+        if s:
+            self.customer = s.title()
+
+        s = input(f"Mô tả [{self.description}]: ").strip()
+        if s:
+            self.description = s
+
+        s = input("Ngày hoàn thành dự kiến (dd/mm/yyyy, Enter bỏ qua): ").strip()
+        if s:
+            try:
+                d = datetime.strptime(s, "%d/%m/%Y")
+                if d >= self.start_date:
+                    self.expected_end_date = d
+            except ValueError:
+                print("Sai định dạng ngày")
+
+        s = input("Ngày hoàn thành thực tế (dd/mm/yyyy, Enter bỏ qua): ").strip()
+        if s:
+            try:
+                d = datetime.strptime(s, "%d/%m/%Y")
+                if d >= self.start_date:
+                    self.actual_end_date = d
+            except ValueError:
+                print("Sai định dạng ngày")
+
+        s = input(f"Ngân sách [{self.budget}]: ").strip()
+        if s:
+            try:
+                b = float(s)
+                if b > 0:
+                    self.budget = b
+            except ValueError:
+                print("Ngân sách phải là số")
+
+        print("Chọn trạng thái mới:")
+        for i, st in enumerate(self.STATUS_LIST, 1):
+            print(f"{i}. {st}")
+        s = input("Chọn (Enter giữ nguyên): ").strip()
+        if s:
+            try:
+                idx = int(s)
+                if 1 <= idx <= len(self.STATUS_LIST):
+                    self.status_project = self.STATUS_LIST[idx - 1]
+            except ValueError:
+                print("Lựa chọn không hợp lệ")
+
+        print("✅ Đã cập nhật dự án")
